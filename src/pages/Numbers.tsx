@@ -1,124 +1,103 @@
+import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
-import { Phone, Plus, MoreHorizontal, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Phone, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/use-tenant";
 
-const numbers = [
-  { id: 1, phone: "+966 50 123 4567", name: "الخط الرئيسي", status: "connected" as const, type: "connected", addedAt: "2024-01-15", lastActive: "منذ 5 دقائق" },
-  { id: 2, phone: "+15557285727", name: "alazab", status: "connected" as const, type: "digital", addedAt: "2024-02-20", lastActive: "منذ 12 دقيقة" },
-  { id: 3, phone: "+15557245001", name: "alazabfix", status: "connected" as const, type: "digital", addedAt: "2024-03-10", lastActive: "منذ ساعة" },
-];
-
-const statusMap = {
-  connected: { status: "success" as const, label: "متصل" },
-  disconnected: { status: "danger" as const, label: "غير متصل" },
-  pending: { status: "warning" as const, label: "قيد التفعيل" },
+const statusMap: Record<string, { status: "success" | "danger" | "warning"; label: string }> = {
+  active: { status: "success", label: "متصل" },
+  connected: { status: "success", label: "متصل" },
+  disconnected: { status: "danger", label: "غير متصل" },
+  pending: { status: "warning", label: "قيد التفعيل" },
 };
 
 const NumbersPage = () => {
+  const { tenantId, loading: tenantLoading } = useTenant();
+  const [numbers, setNumbers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    supabase
+      .from("wa_numbers")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        setNumbers(data || []);
+        setLoading(false);
+      });
+  }, [tenantId]);
+
+  if (tenantLoading || loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+      </DashboardLayout>
+    );
+  }
+
+  const byType = (type: string) => numbers.filter((n) => n.type === type);
+
+  const renderTable = (items: any[]) => {
+    if (items.length === 0) {
+      return (
+        <div className="bg-card rounded-xl border border-border p-8">
+          <EmptyState icon={Phone} title="لا توجد أرقام" description="سيتم إضافة الأرقام عند ربط حساب واتساب" />
+        </div>
+      );
+    }
+    return (
+      <div className="bg-card rounded-xl border border-border">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-right text-xs font-medium text-muted-foreground p-4">الرقم</th>
+              <th className="text-right text-xs font-medium text-muted-foreground p-4">النوع</th>
+              <th className="text-right text-xs font-medium text-muted-foreground p-4">الحالة</th>
+              <th className="text-right text-xs font-medium text-muted-foreground p-4">تاريخ الإضافة</th>
+              <th className="text-right text-xs font-medium text-muted-foreground p-4">آخر نشاط</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((num) => {
+              const st = statusMap[num.status] || { status: "neutral" as const, label: num.status };
+              return (
+                <tr key={num.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                  <td className="p-4 text-sm font-medium" dir="ltr">{num.phone_e164}</td>
+                  <td className="p-4 text-sm">{num.type}</td>
+                  <td className="p-4"><StatusBadge status={st.status} label={st.label} /></td>
+                  <td className="p-4 text-sm text-muted-foreground">{new Date(num.created_at).toLocaleDateString("ar")}</td>
+                  <td className="p-4 text-sm text-muted-foreground">{num.last_active_at ? new Date(num.last_active_at).toLocaleDateString("ar") : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <DashboardLayout>
-      <PageHeader title="إدارة الأرقام" description="إدارة أرقام واتساب المتصلة والرقمية">
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" />
-          إضافة رقم
-        </Button>
-      </PageHeader>
+      <PageHeader title="إدارة الأرقام" description="إدارة أرقام واتساب المتصلة والرقمية" />
 
       <Tabs defaultValue="all" className="animate-fade-in">
         <TabsList className="mb-4">
           <TabsTrigger value="all">الكل ({numbers.length})</TabsTrigger>
-          <TabsTrigger value="connected">متصلة</TabsTrigger>
-          <TabsTrigger value="digital">رقمية</TabsTrigger>
-          <TabsTrigger value="sandbox">بيئة الاختبار</TabsTrigger>
+          <TabsTrigger value="connected">متصلة ({byType("connected").length})</TabsTrigger>
+          <TabsTrigger value="digital">رقمية ({byType("digital").length})</TabsTrigger>
+          <TabsTrigger value="sandbox">اختبار ({byType("sandbox").length})</TabsTrigger>
         </TabsList>
 
-        <div className="flex items-center gap-3 mb-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="بحث بالرقم أو الاسم..." className="pr-9" />
-          </div>
-        </div>
-
-        <TabsContent value="all">
-          <div className="bg-card rounded-xl border border-border">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">الرقم</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">الاسم</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">الحالة</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">تاريخ الإضافة</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">آخر نشاط</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {numbers.map((num) => (
-                  <tr key={num.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
-                    <td className="p-4 text-sm font-medium" dir="ltr">{num.phone}</td>
-                    <td className="p-4 text-sm">{num.name}</td>
-                    <td className="p-4">
-                      <StatusBadge status={statusMap[num.status as keyof typeof statusMap].status} label={statusMap[num.status as keyof typeof statusMap].label} />
-                    </td>
-                    <td className="p-4 text-sm text-muted-foreground">{num.addedAt}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{num.lastActive}</td>
-                    <td className="p-4">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground transition-colors">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>خيارات</TooltipContent>
-                      </Tooltip>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="connected">
-          <div className="bg-card rounded-xl border border-border p-8">
-            <EmptyState icon={Phone} title="لا توجد أرقام متصلة بشريحة" description="قم بربط رقم هاتف عبر شريحة SIM للبدء" actionLabel="ربط رقم جديد" onAction={() => {}} />
-          </div>
-        </TabsContent>
-        <TabsContent value="digital">
-          <div className="bg-card rounded-xl border border-border p-4">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">الرقم</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">الاسم</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">الحالة</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground p-4">آخر نشاط</th>
-                </tr>
-              </thead>
-              <tbody>
-                {numbers.filter(n => n.type === "digital").map(num => (
-                  <tr key={num.id} className="border-b last:border-0 hover:bg-muted/50">
-                    <td className="p-4 text-sm font-medium" dir="ltr">{num.phone}</td>
-                    <td className="p-4 text-sm">{num.name}</td>
-                    <td className="p-4"><StatusBadge status="success" label="متصل" /></td>
-                    <td className="p-4 text-sm text-muted-foreground">{num.lastActive}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </TabsContent>
-        <TabsContent value="sandbox">
-          <div className="bg-card rounded-xl border border-border p-8">
-            <EmptyState icon={Phone} title="لا توجد أرقام اختبار" description="أنشئ رقم بيئة اختبار لتجربة الرسائل" actionLabel="إنشاء بيئة اختبار" onAction={() => {}} />
-          </div>
-        </TabsContent>
+        <TabsContent value="all">{renderTable(numbers)}</TabsContent>
+        <TabsContent value="connected">{renderTable(byType("connected"))}</TabsContent>
+        <TabsContent value="digital">{renderTable(byType("digital"))}</TabsContent>
+        <TabsContent value="sandbox">{renderTable(byType("sandbox"))}</TabsContent>
       </Tabs>
     </DashboardLayout>
   );
