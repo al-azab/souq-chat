@@ -14,6 +14,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { label: "لوحة المعلومات", icon: LayoutDashboard, path: "/" },
@@ -31,6 +32,7 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   return (
     <aside className="fixed right-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50 border-l border-sidebar-border">
@@ -77,15 +79,15 @@ export function AppSidebar() {
       <div className="p-3 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-sidebar-hover">
           <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-            م
+            {(user?.user_metadata?.name || user?.email || "م").charAt(0)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium truncate">مدير النظام</p>
-            <p className="text-[11px] text-sidebar-muted truncate">admin@example.com</p>
+            <p className="text-xs font-medium truncate">{user?.user_metadata?.name || "مستخدم"}</p>
+            <p className="text-[11px] text-sidebar-muted truncate">{user?.email}</p>
           </div>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="text-sidebar-muted hover:text-destructive transition-colors">
+              <button onClick={signOut} className="text-sidebar-muted hover:text-destructive transition-colors">
                 <LogOut className="w-4 h-4" />
               </button>
             </TooltipTrigger>

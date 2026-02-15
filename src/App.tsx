@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Numbers from "./pages/Numbers";
 import Inbox from "./pages/Inbox";
@@ -14,6 +16,7 @@ import ApiKeys from "./pages/ApiKeys";
 import Workflows from "./pages/Workflows";
 import Audit from "./pages/Audit";
 import Settings from "./pages/Settings";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,20 +27,23 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/numbers" element={<Numbers />} />
-          <Route path="/inbox" element={<Inbox />} />
-          <Route path="/contacts" element={<Contacts />} />
-          <Route path="/media" element={<Media />} />
-          <Route path="/templates" element={<Templates />} />
-          <Route path="/webhooks" element={<Webhooks />} />
-          <Route path="/api-keys" element={<ApiKeys />} />
-          <Route path="/workflows" element={<Workflows />} />
-          <Route path="/audit" element={<Audit />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/numbers" element={<ProtectedRoute><Numbers /></ProtectedRoute>} />
+            <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+            <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
+            <Route path="/media" element={<ProtectedRoute><Media /></ProtectedRoute>} />
+            <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
+            <Route path="/webhooks" element={<ProtectedRoute><Webhooks /></ProtectedRoute>} />
+            <Route path="/api-keys" element={<ProtectedRoute><ApiKeys /></ProtectedRoute>} />
+            <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
+            <Route path="/audit" element={<ProtectedRoute><Audit /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
