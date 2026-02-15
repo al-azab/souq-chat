@@ -1,27 +1,12 @@
+import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { KPICard } from "@/components/KPICard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Phone, MessageSquare, AlertTriangle, GitBranch, Plus, Webhook, Key, Zap } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-
-const chartData = [
-  { name: "السبت", وارد: 120, صادر: 80 },
-  { name: "الأحد", وارد: 200, صادر: 150 },
-  { name: "الاثنين", وارد: 180, صادر: 220 },
-  { name: "الثلاثاء", وارد: 250, صادر: 190 },
-  { name: "الأربعاء", وارد: 300, صادر: 280 },
-  { name: "الخميس", وارد: 220, صادر: 200 },
-  { name: "الجمعة", وارد: 150, صادر: 130 },
-];
-
-const recentMessages = [
-  { id: 1, from: "+966 50 123 4567", message: "مرحباً، أريد الاستفسار عن الطلب", time: "منذ 5 دقائق", status: "success" as const, statusLabel: "تم التسليم" },
-  { id: 2, from: "+966 55 987 6543", message: "شكراً لتواصلكم", time: "منذ 12 دقيقة", status: "success" as const, statusLabel: "تم القراءة" },
-  { id: 3, from: "+971 50 111 2222", message: "هل يمكنني تغيير العنوان؟", time: "منذ 30 دقيقة", status: "warning" as const, statusLabel: "قيد الانتظار" },
-  { id: 4, from: "+966 54 333 4444", message: "طلب إلغاء الاشتراك", time: "منذ ساعة", status: "danger" as const, statusLabel: "فشل" },
-  { id: 5, from: "+20 10 555 6666", message: "تأكيد الحجز رقم #4521", time: "منذ ساعتين", status: "success" as const, statusLabel: "تم التسليم" },
-];
+import { Phone, MessageSquare, AlertTriangle, GitBranch, Plus, Webhook, Key, Zap, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useTenant } from "@/hooks/use-tenant";
+import { Link } from "react-router-dom";
 
 const quickActions = [
   { label: "إضافة رقم", icon: Phone, path: "/numbers" },
@@ -30,81 +15,116 @@ const quickActions = [
   { label: "سير عمل جديد", icon: Zap, path: "/workflows" },
 ];
 
+const statusMap: Record<string, { status: "success" | "warning" | "danger"; label: string }> = {
+  delivered: { status: "success", label: "تم التسليم" },
+  read: { status: "success", label: "تم القراءة" },
+  sent: { status: "success", label: "تم الإرسال" },
+  queued: { status: "warning", label: "قيد الانتظار" },
+  failed: { status: "danger", label: "فشل" },
+};
+
 const Dashboard = () => {
+  const { tenantId, loading: tenantLoading } = useTenant();
+  const [stats, setStats] = useState({ numbers: 0, messagesToday: 0, errors: 0, workflows: 0 });
+  const [recentMessages, setRecentMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!tenantId) return;
+
+    const fetchData = async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const [numbersRes, msgTodayRes, errorsRes, workflowsRes, recentRes] = await Promise.all([
+        supabase.from("wa_numbers").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+        supabase.from("messages").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("created_at", today.toISOString()),
+        supabase.from("messages").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "failed").gte("created_at", today.toISOString()),
+        supabase.from("workflows").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("is_enabled", true),
+        supabase.from("messages").select("id, text, status, direction, created_at, conversations(contacts(phone_e164, display_name))").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(10),
+      ]);
+
+      setStats({
+        numbers: numbersRes.count || 0,
+        messagesToday: msgTodayRes.count || 0,
+        errors: errorsRes.count || 0,
+        workflows: workflowsRes.count || 0,
+      });
+
+      setRecentMessages(recentRes.data || []);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [tenantId]);
+
+  if (tenantLoading || loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <PageHeader title="لوحة المعلومات" description="نظرة عامة على نشاط WhatsApp Business" />
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KPICard title="الأرقام المتصلة" value={3} change="+1 هذا الشهر" changeType="positive" icon={Phone} />
-        <KPICard
-          title="الرسائل اليوم"
-          value="1,247"
-          change="↑ 12% عن أمس"
-          changeType="positive"
-          icon={MessageSquare}
-          iconColor="bg-info/10 text-info"
-        />
-        <KPICard
-          title="الأخطاء"
-          value={3}
-          change="↓ 60% عن أمس"
-          changeType="positive"
-          icon={AlertTriangle}
-          iconColor="bg-warning/10 text-warning"
-        />
-        <KPICard
-          title="سير العمل النشط"
-          value={7}
-          change="2 جديد هذا الأسبوع"
-          changeType="neutral"
-          icon={GitBranch}
-          iconColor="bg-accent text-accent-foreground"
-        />
+        <KPICard title="الأرقام المتصلة" value={stats.numbers} icon={Phone} />
+        <KPICard title="الرسائل اليوم" value={stats.messagesToday} icon={MessageSquare} iconColor="bg-info/10 text-info" />
+        <KPICard title="الأخطاء" value={stats.errors} icon={AlertTriangle} iconColor="bg-warning/10 text-warning" />
+        <KPICard title="سير العمل النشط" value={stats.workflows} icon={GitBranch} iconColor="bg-accent text-accent-foreground" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Chart */}
-        <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5 animate-fade-in">
-          <h3 className="font-semibold text-card-foreground mb-4">الرسائل اليومية</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="colorIn" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(142, 70%, 40%)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(142, 70%, 40%)" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorOut" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(210, 80%, 52%)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(210, 80%, 52%)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(214, 20%, 90%)" />
-              <XAxis dataKey="name" tick={{ fontSize: 12, fontFamily: "Cairo" }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip
-                contentStyle={{
-                  fontFamily: "Cairo",
-                  borderRadius: "8px",
-                  border: "1px solid hsl(214, 20%, 90%)",
-                  direction: "rtl",
-                }}
-              />
-              <Area type="monotone" dataKey="وارد" stroke="hsl(142, 70%, 40%)" fill="url(#colorIn)" strokeWidth={2} />
-              <Area type="monotone" dataKey="صادر" stroke="hsl(210, 80%, 52%)" fill="url(#colorOut)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="lg:col-span-2 bg-card rounded-xl border border-border animate-fade-in">
+          <div className="p-5 border-b border-border">
+            <h3 className="font-semibold text-card-foreground">الرسائل الحديثة</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-right text-xs font-medium text-muted-foreground p-4">المرسل</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground p-4">الرسالة</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground p-4">الاتجاه</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground p-4">الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentMessages.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-muted-foreground text-sm">لا توجد رسائل بعد</td>
+                  </tr>
+                ) : (
+                  recentMessages.map((msg) => {
+                    const contact = (msg.conversations as any)?.contacts;
+                    const st = statusMap[msg.status] || { status: "neutral" as const, label: msg.status };
+                    return (
+                      <tr key={msg.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                        <td className="p-4 text-sm font-medium" dir="ltr">{contact?.phone_e164 || "—"}</td>
+                        <td className="p-4 text-sm text-muted-foreground max-w-xs truncate">{msg.text || "(وسائط)"}</td>
+                        <td className="p-4 text-sm">{msg.direction === "inbound" ? "وارد" : "صادر"}</td>
+                        <td className="p-4"><StatusBadge status={st.status} label={st.label} /></td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="bg-card rounded-xl border border-border p-5 animate-fade-in">
           <h3 className="font-semibold text-card-foreground mb-4">إجراءات سريعة</h3>
           <div className="space-y-2">
             {quickActions.map((action) => (
-              <a
+              <Link
                 key={action.path}
-                href={action.path}
+                to={action.path}
                 className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted transition-colors group"
               >
                 <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
@@ -112,38 +132,9 @@ const Dashboard = () => {
                 </div>
                 <span className="text-sm font-medium">{action.label}</span>
                 <Plus className="w-4 h-4 text-muted-foreground mr-auto" />
-              </a>
+              </Link>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Recent Messages Table */}
-      <div className="bg-card rounded-xl border border-border animate-fade-in">
-        <div className="p-5 border-b border-border">
-          <h3 className="font-semibold text-card-foreground">الرسائل الحديثة</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-right text-xs font-medium text-muted-foreground p-4">المرسل</th>
-                <th className="text-right text-xs font-medium text-muted-foreground p-4">الرسالة</th>
-                <th className="text-right text-xs font-medium text-muted-foreground p-4">الوقت</th>
-                <th className="text-right text-xs font-medium text-muted-foreground p-4">الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentMessages.map((msg) => (
-                <tr key={msg.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
-                  <td className="p-4 text-sm font-medium" dir="ltr">{msg.from}</td>
-                  <td className="p-4 text-sm text-muted-foreground max-w-xs truncate">{msg.message}</td>
-                  <td className="p-4 text-sm text-muted-foreground">{msg.time}</td>
-                  <td className="p-4"><StatusBadge status={msg.status} label={msg.statusLabel} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </DashboardLayout>
