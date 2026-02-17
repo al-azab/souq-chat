@@ -5,11 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Link2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/use-tenant";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 const SettingsPage = () => {
   const { tenantId, tenantName, loading: tenantLoading } = useTenant();
@@ -17,17 +26,34 @@ const SettingsPage = () => {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [waAccount, setWaAccount] = useState<any>(null);
+  const [loadingWa, setLoadingWa] = useState(true);
   const { toast } = useToast();
+
+  // Link WA account form
+  const [waLabel, setWaLabel] = useState("");
+  const [wabaId, setWabaId] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     setName(tenantName || "");
   }, [tenantName]);
 
-  useEffect(() => {
+  const fetchWaAccount = async () => {
     if (!tenantId) return;
-    supabase.from("wa_accounts").select("*").eq("tenant_id", tenantId).limit(1).maybeSingle().then(({ data }) => {
-      setWaAccount(data);
-    });
+    setLoadingWa(true);
+    const { data } = await supabase
+      .from("wa_accounts")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .limit(1)
+      .maybeSingle();
+    setWaAccount(data);
+    setLoadingWa(false);
+  };
+
+  useEffect(() => {
+    fetchWaAccount();
   }, [tenantId]);
 
   const handleSave = async () => {
@@ -36,6 +62,26 @@ const SettingsPage = () => {
     await supabase.from("tenants").update({ name }).eq("id", tenantId);
     setSaving(false);
     toast({ title: "تم حفظ الإعدادات" });
+  };
+
+  const handleLinkWaAccount = async () => {
+    if (!tenantId || !wabaId.trim() || !waLabel.trim()) return;
+    setLinking(true);
+    const { error } = await supabase.from("wa_accounts").insert({
+      tenant_id: tenantId,
+      waba_id: wabaId.trim(),
+      label: waLabel.trim(),
+    });
+    setLinking(false);
+    if (error) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "تم ربط حساب واتساب بنجاح" });
+      setDialogOpen(false);
+      setWaLabel("");
+      setWabaId("");
+      fetchWaAccount();
+    }
   };
 
   if (tenantLoading) {
@@ -53,7 +99,7 @@ const SettingsPage = () => {
       <Tabs defaultValue="general" className="animate-fade-in">
         <TabsList className="mb-6">
           <TabsTrigger value="general">عام</TabsTrigger>
-          <TabsTrigger value="account">الحساب</TabsTrigger>
+          <TabsTrigger value="account">حساب واتساب</TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
         </TabsList>
 
@@ -78,18 +124,93 @@ const SettingsPage = () => {
         </TabsContent>
 
         <TabsContent value="account">
-          <div className="bg-card rounded-xl border border-border p-6 space-y-4 max-w-2xl">
-            <div>
-              <Label className="text-sm font-medium">حساب واتساب</Label>
-              {waAccount ? (
-                <div className="mt-2 p-3 rounded-lg bg-muted">
-                  <p className="text-sm font-medium">{waAccount.label}</p>
-                  <p className="text-xs text-muted-foreground font-mono" dir="ltr">WABA ID: {waAccount.waba_id}</p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground mt-2">لم يتم ربط حساب واتساب بعد</p>
+          <div className="bg-card rounded-xl border border-border p-6 space-y-6 max-w-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">حساب واتساب للأعمال</h3>
+              {!waAccount && !loadingWa && (
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Link2 className="w-4 h-4 ml-2" />
+                      ربط حساب واتساب
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>ربط حساب واتساب للأعمال</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div>
+                        <Label className="text-sm font-medium">اسم الحساب</Label>
+                        <Input
+                          className="mt-1.5"
+                          placeholder="مثال: حساب الشركة الرئيسي"
+                          value={waLabel}
+                          onChange={(e) => setWaLabel(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">معرف حساب الأعمال (WABA ID)</Label>
+                        <Input
+                          className="mt-1.5"
+                          placeholder="مثال: 123456789012345"
+                          dir="ltr"
+                          value={wabaId}
+                          onChange={(e) => setWabaId(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          تجده في لوحة تحكم Meta Business → WhatsApp → إعدادات الحساب
+                        </p>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">إلغاء</Button>
+                      </DialogClose>
+                      <Button onClick={handleLinkWaAccount} disabled={linking || !wabaId.trim() || !waLabel.trim()}>
+                        {linking && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
+                        ربط الحساب
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               )}
             </div>
+
+            {loadingWa ? (
+              <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+            ) : waAccount ? (
+              <div className="rounded-lg border border-border p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                  <span className="font-medium">الحساب مربوط</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">اسم الحساب</Label>
+                    <p className="text-sm font-medium mt-0.5">{waAccount.label}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">WABA ID</Label>
+                    <p className="text-sm font-mono mt-0.5" dir="ltr">{waAccount.waba_id}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">معرف الحساب</Label>
+                    <p className="text-sm font-mono mt-0.5" dir="ltr">{waAccount.id}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">تاريخ الربط</Label>
+                    <p className="text-sm mt-0.5">{new Date(waAccount.created_at).toLocaleDateString("ar")}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Link2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">لم يتم ربط حساب واتساب بعد</p>
+                <p className="text-sm mt-1">اربط حسابك من زر "ربط حساب واتساب" أعلاه</p>
+              </div>
+            )}
           </div>
         </TabsContent>
 
