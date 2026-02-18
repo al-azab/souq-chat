@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.cloudinary_ops]
 verify_jwt = false
+
+[functions.provision_tenant]
+verify_jwt = false
