@@ -1,13 +1,28 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Search, Send, Loader2 } from "lucide-react";
+import { Search, Send, Loader2, Plus, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
-import { MessageSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/use-tenant";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 const InboxPage = () => {
   const { tenantId, loading: tenantLoading } = useTenant();
@@ -21,6 +36,14 @@ const InboxPage = () => {
   const [search, setSearch] = useState("");
   const { toast } = useToast();
 
+  // New conversation dialog
+  const [newConvOpen, setNewConvOpen] = useState(false);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [waNumbers, setWaNumbers] = useState<any[]>([]);
+  const [selectedContact, setSelectedContact] = useState("");
+  const [selectedWaNumber, setSelectedWaNumber] = useState("");
+  const [creatingConv, setCreatingConv] = useState(false);
+
   const fetchConversations = async () => {
     if (!tenantId) return;
     const { data } = await supabase
@@ -33,7 +56,22 @@ const InboxPage = () => {
     setLoading(false);
   };
 
+  const fetchContactsAndNumbers = async () => {
+    if (!tenantId) return;
+    const [{ data: c }, { data: n }] = await Promise.all([
+      supabase.from("contacts").select("id, phone_e164, display_name").eq("tenant_id", tenantId).limit(100),
+      supabase.from("wa_numbers").select("id, phone_e164, phone_number_id").eq("tenant_id", tenantId).limit(20),
+    ]);
+    setContacts(c || []);
+    setWaNumbers(n || []);
+    if (n && n.length > 0) setSelectedWaNumber(n[0].id);
+  };
+
   useEffect(() => { fetchConversations(); }, [tenantId]);
+
+  useEffect(() => {
+    if (newConvOpen) fetchContactsAndNumbers();
+  }, [newConvOpen, tenantId]);
 
   useEffect(() => {
     if (!selectedConv) { setMessages([]); return; }
@@ -50,7 +88,7 @@ const InboxPage = () => {
       });
   }, [selectedConv]);
 
-  // Realtime subscription for messages
+  // Realtime subscription
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
@@ -62,9 +100,51 @@ const InboxPage = () => {
         fetchConversations();
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [tenantId, selectedConv]);
+
+  const handleCreateConversation = async () => {
+    if (!selectedContact || !selectedWaNumber || !tenantId) return;
+    setCreatingConv(true);
+
+    // Check if open conversation already exists
+    const { data: existing } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("wa_number_id", selectedWaNumber)
+      .eq("contact_id", selectedContact)
+      .eq("status", "open")
+      .maybeSingle();
+
+    if (existing) {
+      setSelectedConv(existing.id);
+      setNewConvOpen(false);
+      setCreatingConv(false);
+      return;
+    }
+
+    const { data: newConv, error } = await supabase
+      .from("conversations")
+      .insert({
+        tenant_id: tenantId,
+        wa_number_id: selectedWaNumber,
+        contact_id: selectedContact,
+        status: "open",
+      })
+      .select("id")
+      .single();
+
+    setCreatingConv(false);
+    if (error) {
+      toast({ title: "خطأ", description: error.message, variant: "destructive" });
+      return;
+    }
+    await fetchConversations();
+    setSelectedConv(newConv.id);
+    setNewConvOpen(false);
+    setSelectedContact("");
+  };
 
   const handleSend = async () => {
     if (!selectedConv || !newMsg.trim() || !tenantId) return;
@@ -104,7 +184,13 @@ const InboxPage = () => {
         {/* Conversations List */}
         <div className="w-80 border-l border-border bg-card flex flex-col">
           <div className="p-4 border-b border-border">
-            <h2 className="font-semibold mb-3">صندوق الوارد ({conversations.length})</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold">صندوق الوارد ({conversations.length})</h2>
+              <Button size="sm" onClick={() => setNewConvOpen(true)} className="h-8 gap-1">
+                <Plus className="w-3.5 h-3.5" />
+                جديد
+              </Button>
+            </div>
             <div className="relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="بحث..." className="pr-9 text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -112,7 +198,14 @@ const InboxPage = () => {
           </div>
           <div className="flex-1 overflow-y-auto">
             {filteredConversations.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">لا توجد محادثات</div>
+              <div className="p-8 text-center">
+                <MessageSquare className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground mb-3">لا توجد محادثات</p>
+                <Button size="sm" variant="outline" onClick={() => setNewConvOpen(true)}>
+                  <Plus className="w-3.5 h-3.5 ml-1" />
+                  ابدأ محادثة
+                </Button>
+              </div>
             ) : (
               filteredConversations.map((conv) => {
                 const ct = conv.contacts;
@@ -144,7 +237,7 @@ const InboxPage = () => {
         <div className="flex-1 flex flex-col bg-background">
           {!selectedConv ? (
             <div className="flex-1 flex items-center justify-center">
-              <EmptyState icon={MessageSquare} title="اختر محادثة" description="اختر محادثة من القائمة لعرض الرسائل" />
+              <EmptyState icon={MessageSquare} title="اختر محادثة" description="اختر محادثة من القائمة أو ابدأ محادثة جديدة" />
             </div>
           ) : (
             <>
@@ -203,6 +296,57 @@ const InboxPage = () => {
           )}
         </div>
       </div>
+
+      {/* New Conversation Dialog */}
+      <Dialog open={newConvOpen} onOpenChange={setNewConvOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>محادثة جديدة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>جهة الاتصال</Label>
+              <Select value={selectedContact} onValueChange={setSelectedContact}>
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر جهة اتصال..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {contacts.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.display_name || c.phone_e164} <span className="text-muted-foreground text-xs mr-1" dir="ltr">{c.phone_e164}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>رقم واتساب المرسِل</Label>
+              <Select value={selectedWaNumber} onValueChange={setSelectedWaNumber}>
+                <SelectTrigger>
+                  <SelectValue placeholder="اختر رقم..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {waNumbers.map((n) => (
+                    <SelectItem key={n.id} value={n.id}>
+                      <span dir="ltr">{n.phone_e164}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewConvOpen(false)}>إلغاء</Button>
+            <Button
+              onClick={handleCreateConversation}
+              disabled={!selectedContact || !selectedWaNumber || creatingConv}
+            >
+              {creatingConv ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : null}
+              فتح محادثة
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
