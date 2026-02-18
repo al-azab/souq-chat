@@ -40,7 +40,7 @@ const Auth = () => {
         if (error) throw error;
         toast({ title: "تم تسجيل الدخول بنجاح" });
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -49,6 +49,28 @@ const Auth = () => {
           },
         });
         if (error) throw error;
+
+        // Auto-provision wa_account using stored secrets
+        if (signUpData.session) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/provision_tenant`,
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    "Content-Type": "application/json",
+                  },
+                }
+              );
+            }
+          } catch (provErr) {
+            console.warn("provision_tenant failed (non-critical):", provErr);
+          }
+        }
+
         toast({
           title: "تم إنشاء الحساب",
           description: "تحقق من بريدك الإلكتروني لتأكيد الحساب",
