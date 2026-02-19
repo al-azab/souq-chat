@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.provision_tenant]
 verify_jwt = false
+
+[functions.media_sync_wa]
+verify_jwt = false
+
+[functions.diagnose_number]
+verify_jwt = false

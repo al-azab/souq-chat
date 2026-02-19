@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
+import { SendTemplateModal } from "@/components/SendTemplateModal";
 import {
   Search, RefreshCw, FileText, Loader2, Plus, Send, MoreHorizontal,
-  Copy, Pencil, Trash2, ChevronDown,
+  Copy, Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,6 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/use-tenant";
 import { useToast } from "@/hooks/use-toast";
@@ -68,6 +68,7 @@ const TemplatesPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [syncing, setSyncing] = useState(false);
+  const [sendModal, setSendModal] = useState<{ open: boolean; template: any }>({ open: false, template: null });
   const { toast } = useToast();
 
   const fetchAll = async () => {
@@ -115,7 +116,7 @@ const TemplatesPage = () => {
   };
 
   const handleSend = (t: any) => {
-    toast({ title: `إرسال قالب: ${t.name}`, description: "سيتم فتح نافذة إرسال القالب قريباً" });
+    setSendModal({ open: true, template: t });
   };
 
   const handleCopy = (t: any) => {
@@ -333,6 +334,16 @@ const TemplatesPage = () => {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Send Template Modal */}
+      {tenantId && (
+        <SendTemplateModal
+          open={sendModal.open}
+          onClose={() => setSendModal({ open: false, template: null })}
+          template={sendModal.template}
+          tenantId={tenantId}
+        />
       )}
     </DashboardLayout>
   );

@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import {
   Upload, Image as ImageIcon, Loader2, X, ZoomIn,
   Download, Trash2, Grid3X3, LayoutGrid, CheckCircle2,
-  AlertCircle, FileImage
+  AlertCircle, FileImage, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -64,6 +64,7 @@ const MediaPage = () => {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [gridSize, setGridSize] = useState<"sm" | "lg">("lg");
+  const [syncing, setSyncing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -236,6 +237,21 @@ const MediaPage = () => {
     }
   };
 
+  const handleSyncWA = async () => {
+    if (!tenantId) return;
+    setSyncing(true);
+    const { data, error } = await supabase.functions.invoke("media_sync_wa", {
+      body: { tenant_id: tenantId, limit: 50 },
+    });
+    setSyncing(false);
+    if (error) {
+      toast.error(`فشل في المزامنة: ${error.message}`);
+    } else {
+      toast.success(data?.message || `تمت مزامنة ${data?.synced || 0} ملف`);
+      if (data?.synced > 0) fetchMedia(0, false);
+    }
+  };
+
   const doneCount = uploadQueue.filter(f => f.status === "done").length;
   const errorCount = uploadQueue.filter(f => f.status === "error").length;
   const totalProgress = uploadQueue.length > 0
@@ -287,10 +303,16 @@ const MediaPage = () => {
             {mediaFiles.length} ملف{hasMore ? "+" : ""}
           </span>
         </div>
-        <Button onClick={() => setShowUpload(true)} className="gap-2">
-          <Upload className="w-4 h-4" />
-          رفع ملفات
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleSyncWA} disabled={syncing} className="gap-2">
+            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            مزامنة واتساب
+          </Button>
+          <Button onClick={() => setShowUpload(true)} className="gap-2">
+            <Upload className="w-4 h-4" />
+            رفع ملفات
+          </Button>
+        </div>
       </div>
 
       {/* Drop zone overlay */}
@@ -448,7 +470,7 @@ const MediaPage = () => {
                   <span>{uploadQueue.length} ملف</span>
                   <div className="flex items-center gap-3 text-muted-foreground">
                     {doneCount > 0 && (
-                      <span className="flex items-center gap-1 text-green-600">
+                      <span className="flex items-center gap-1 text-[hsl(var(--chart-2))]">
                         <CheckCircle2 className="w-3.5 h-3.5" /> {doneCount}
                       </span>
                     )}
@@ -488,7 +510,7 @@ const MediaPage = () => {
                             <Progress value={item.progress} className="h-1.5" />
                           </div>
                         )}
-                        {item.status === "done" && <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />}
+                        {item.status === "done" && <CheckCircle2 className="w-5 h-5 text-[hsl(var(--chart-2))] flex-shrink-0" />}
                         {item.status === "error" && <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0" />}
                         {item.status === "pending" && !isUploading && (
                           <button onClick={() => removeFromQueue(idx)} className="text-muted-foreground hover:text-foreground">

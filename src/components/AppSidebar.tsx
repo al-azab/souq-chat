@@ -12,6 +12,7 @@ import {
   Settings,
   Shield,
   LogOut,
+  Activity,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +28,7 @@ const navItems = [
   { label: "مفاتيح API", icon: Key, path: "/api-keys" },
   { label: "سير العمل", icon: GitBranch, path: "/workflows" },
   { label: "السجلات", icon: Shield, path: "/audit" },
+  { label: "تشخيص النظام", icon: Activity, path: "/diagnostics" },
   { label: "الإعدادات", icon: Settings, path: "/settings" },
 ];
 
