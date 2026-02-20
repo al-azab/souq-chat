@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,40 +28,45 @@ export function SendTemplateModal({ open, onClose, template, tenantId }: Props) 
   const [loadingData, setLoadingData] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
 
-  const loadData = async () => {
-    if (loaded) return;
-    setLoadingData(true);
-    const [{ data: c, error: ce }, { data: n, error: ne }] = await Promise.all([
-      supabase.from("contacts").select("id,phone_e164,display_name").eq("tenant_id", tenantId).order("display_name").limit(500),
-      supabase.from("wa_numbers").select("id,phone_e164,phone_number_id").eq("tenant_id", tenantId).limit(50),
-    ]);
+  // Load data whenever modal opens (or tenantId becomes available)
+  useEffect(() => {
+    if (!open || !tenantId) return;
 
-    if (ce) console.error("contacts error:", ce);
-    if (ne) console.error("wa_numbers error:", ne);
+    const loadData = async () => {
+      setLoadingData(true);
+      console.log("SendTemplateModal: loading data for tenant", tenantId);
 
-    setContacts(c || []);
-    setWaNumbers(n || []);
-    if (n && n.length > 0) setSelectedWaNumber(n[0].id);
-    setLoaded(true);
-    setLoadingData(false);
+      const [{ data: c, error: ce }, { data: n, error: ne }] = await Promise.all([
+        supabase.from("contacts").select("id,phone_e164,display_name").eq("tenant_id", tenantId).order("display_name").limit(500),
+        supabase.from("wa_numbers").select("id,phone_e164,phone_number_id").eq("tenant_id", tenantId).limit(50),
+      ]);
 
-    // Pre-fill variables from template
-    const vars: Record<string, string> = {};
-    const varList = Array.isArray(template?.variables) ? template.variables : [];
-    varList.forEach((_: any, i: number) => { vars[String(i + 1)] = ""; });
-    // Also extract {{N}} from body
-    const bodyVars = (template?.body || "").match(/\{\{(\d+)\}\}/g) || [];
-    bodyVars.forEach((v: string) => {
-      const key = v.replace(/[{}]/g, "");
-      if (!vars[key]) vars[key] = "";
-    });
-    setVariables(vars);
-  };
+      console.log("contacts:", c?.length, ce);
+      console.log("wa_numbers:", n?.length, ne);
+
+      setContacts(c || []);
+      setWaNumbers(n || []);
+      if (n && n.length > 0) setSelectedWaNumber(n[0].id);
+      setLoaded(true);
+      setLoadingData(false);
+
+      // Extract variables from template body
+      const vars: Record<string, string> = {};
+      const varList = Array.isArray(template?.variables) ? template.variables : [];
+      varList.forEach((_: any, i: number) => { vars[String(i + 1)] = ""; });
+      const bodyVars = (template?.body || "").match(/\{\{(\d+)\}\}/g) || [];
+      bodyVars.forEach((v: string) => {
+        const key = v.replace(/[{}]/g, "");
+        if (!vars[key]) vars[key] = "";
+      });
+      setVariables(vars);
+    };
+
+    loadData();
+  }, [open, tenantId]);
 
   const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen) {
-      loadData();
-    } else {
+    if (!isOpen) {
       setSelectedContact("");
       setSelectedWaNumber("");
       setVariables({});
