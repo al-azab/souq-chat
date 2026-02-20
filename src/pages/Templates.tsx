@@ -78,7 +78,7 @@ const TemplatesPage = () => {
     const [{ data: nums }, templateRes] = await Promise.all([
       supabase.from("wa_numbers").select("id,phone_e164").eq("tenant_id", tenantId),
       (async () => {
-        let q = supabase.from("templates").select("*").eq("tenant_id", tenantId).order("updated_at", { ascending: false });
+        let q = supabase.from("templates").select("*").eq("tenant_id", tenantId).order("status", { ascending: true }).order("name", { ascending: true });
         if (search) q = q.ilike("name", `%${search}%`);
         if (statusFilter !== "all") q = q.eq("status", statusFilter as any);
         if (categoryFilter !== "all") q = q.eq("category", categoryFilter as any);
@@ -284,13 +284,13 @@ const TemplatesPage = () => {
 
                     {/* Actions */}
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                      <div className="flex items-center gap-1 justify-end">
                         {/* Send button */}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          title="إرسال"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          title="إرسال القالب"
                           onClick={() => handleSend(t)}
                         >
                           <Send className="w-4 h-4" />
