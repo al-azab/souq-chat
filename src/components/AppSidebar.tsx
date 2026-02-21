@@ -23,6 +23,7 @@ const navItems = [
   { label: "صندوق الوارد", icon: MessageSquare, path: "/inbox" },
   { label: "جهات الاتصال", icon: Users, path: "/contacts" },
   { label: "الوسائط", icon: Image, path: "/media" },
+  { label: "معرض المشروعات", icon: Image, path: "/gallery" },
   { label: "القوالب", icon: FileText, path: "/templates" },
   { label: "الويبهوكس", icon: Webhook, path: "/webhooks" },
   { label: "مفاتيح API", icon: Key, path: "/api-keys" },

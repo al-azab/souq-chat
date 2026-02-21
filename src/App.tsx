@@ -10,6 +10,7 @@ import Numbers from "./pages/Numbers";
 import Inbox from "./pages/Inbox";
 import Contacts from "./pages/Contacts";
 import Media from "./pages/Media";
+import Gallery from "./pages/Gallery";
 import Templates from "./pages/Templates";
 import Webhooks from "./pages/Webhooks";
 import ApiKeys from "./pages/ApiKeys";
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute><Contacts /></ProtectedRoute>} />
             <Route path="/media" element={<ProtectedRoute><Media /></ProtectedRoute>} />
+            <Route path="/gallery" element={<ProtectedRoute><Gallery /></ProtectedRoute>} />
             <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
             <Route path="/webhooks" element={<ProtectedRoute><Webhooks /></ProtectedRoute>} />
             <Route path="/api-keys" element={<ProtectedRoute><ApiKeys /></ProtectedRoute>} />
