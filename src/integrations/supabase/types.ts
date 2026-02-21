@@ -291,6 +291,7 @@ export type Database = {
         Row: {
           created_at: string
           deleted_at: string | null
+          folder_id: string | null
           id: string
           kind: Database["public"]["Enums"]["media_kind"]
           message_id: string | null
@@ -305,6 +306,7 @@ export type Database = {
         Insert: {
           created_at?: string
           deleted_at?: string | null
+          folder_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["media_kind"]
           message_id?: string | null
@@ -319,6 +321,7 @@ export type Database = {
         Update: {
           created_at?: string
           deleted_at?: string | null
+          folder_id?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["media_kind"]
           message_id?: string | null
@@ -332,6 +335,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "media_files_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "media_folders"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "media_files_message_id_fkey"
             columns: ["message_id"]
             isOneToOne: false
@@ -340,6 +350,38 @@ export type Database = {
           },
           {
             foreignKeyName: "media_files_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_folders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
