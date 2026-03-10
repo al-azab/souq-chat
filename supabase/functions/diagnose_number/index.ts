@@ -48,16 +48,18 @@ Deno.serve(async (req) => {
     const data = await res.json();
 
     if (!res.ok) {
+      // Return 200 with error details so the client can handle it gracefully
       return json({
+        success: false,
         error: data.error?.message || "WhatsApp API error",
         code: data.error?.code,
-        details: data,
-      }, 502);
+        details: data.error,
+      });
     }
 
     return json({ success: true, data });
   } catch (err: any) {
     console.error("diagnose_number error:", err);
-    return json({ error: err.message }, 500);
+    return json({ success: false, error: err.message }, 200);
   }
 });
