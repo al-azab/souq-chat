@@ -303,9 +303,27 @@ const InboxPage = () => {
               </div>
 
               <div className="p-4 border-t border-border bg-card">
+                {pendingFile && (
+                  <div className="mb-2">
+                    <FileAttachmentButton
+                      tenantId={tenantId!}
+                      onFileReady={setPendingFile}
+                      onClear={() => setPendingFile(null)}
+                      pendingFile={pendingFile}
+                    />
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
+                  {!pendingFile && (
+                    <FileAttachmentButton
+                      tenantId={tenantId!}
+                      onFileReady={setPendingFile}
+                      onClear={() => setPendingFile(null)}
+                      pendingFile={null}
+                    />
+                  )}
                   <Input
-                    placeholder="اكتب رسالة..."
+                    placeholder={pendingFile ? "أضف تعليقاً (اختياري)..." : "اكتب رسالة..."}
                     className="flex-1"
                     value={newMsg}
                     onChange={(e) => setNewMsg(e.target.value)}
@@ -313,7 +331,7 @@ const InboxPage = () => {
                   />
                   <button
                     onClick={handleSend}
-                    disabled={sending || !newMsg.trim()}
+                    disabled={sending || (!newMsg.trim() && !pendingFile)}
                     className="bg-primary text-primary-foreground p-2.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                   >
                     {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
