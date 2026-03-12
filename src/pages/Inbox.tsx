@@ -150,16 +150,30 @@ const InboxPage = () => {
   };
 
   const handleSend = async () => {
-    if (!selectedConv || !newMsg.trim() || !tenantId) return;
+    if (!selectedConv || (!newMsg.trim() && !pendingFile) || !tenantId) return;
     setSending(true);
-    const { error } = await supabase.functions.invoke("send_message", {
-      body: { tenant_id: tenantId, conversation_id: selectedConv, text: newMsg },
-    });
+
+    const payload: Record<string, unknown> = {
+      tenant_id: tenantId,
+      conversation_id: selectedConv,
+    };
+
+    if (pendingFile) {
+      payload.media_url = pendingFile.url;
+      payload.media_mime = pendingFile.mime;
+      payload.media_filename = pendingFile.filename;
+      if (newMsg.trim()) payload.caption = newMsg;
+    } else {
+      payload.text = newMsg;
+    }
+
+    const { error } = await supabase.functions.invoke("send_message", { body: payload });
     setSending(false);
     if (error) {
       toast({ title: "خطأ في الإرسال", description: error.message, variant: "destructive" });
     } else {
       setNewMsg("");
+      setPendingFile(null);
     }
   };
 
