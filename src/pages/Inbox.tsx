@@ -274,20 +274,31 @@ const InboxPage = () => {
                 ) : messages.length === 0 ? (
                   <div className="text-center text-sm text-muted-foreground py-8">لا توجد رسائل بعد</div>
                 ) : (
-                  messages.map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.direction === "outbound" ? "justify-start" : "justify-end"}`}>
-                      <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
-                        msg.direction === "outbound"
-                          ? "bg-card border border-border rounded-br-sm"
-                          : "bg-primary text-primary-foreground rounded-bl-sm"
-                      }`}>
-                        <p className="text-sm">{msg.text || "(وسائط)"}</p>
-                        <p className={`text-[10px] mt-1 ${msg.direction === "outbound" ? "text-muted-foreground" : "text-primary-foreground/70"}`}>
-                          {new Date(msg.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
-                        </p>
+                  messages.map((msg) => {
+                    const mediaMeta = (msg.meta as any)?.media;
+                    const isOutbound = msg.direction === "outbound";
+                    return (
+                      <div key={msg.id} className={`flex ${isOutbound ? "justify-start" : "justify-end"}`}>
+                        <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
+                          isOutbound
+                            ? "bg-card border border-border rounded-br-sm"
+                            : "bg-primary text-primary-foreground rounded-bl-sm"
+                        }`}>
+                          {mediaMeta?.url && (
+                            <div className="mb-1.5">
+                              <ChatMediaBubble media={mediaMeta} isOutbound={isOutbound} />
+                            </div>
+                          )}
+                          {msg.text && !(mediaMeta?.url && msg.text === `[${mediaMeta.type}]`) && (
+                            <p className="text-sm">{msg.text}</p>
+                          )}
+                          <p className={`text-[10px] mt-1 ${isOutbound ? "text-muted-foreground" : "text-primary-foreground/70"}`}>
+                            {new Date(msg.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
