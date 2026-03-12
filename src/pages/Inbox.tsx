@@ -8,6 +8,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/use-tenant";
 import { useToast } from "@/hooks/use-toast";
+import { FileAttachmentButton } from "@/components/inbox/FileAttachmentButton";
+import { ChatMediaBubble } from "@/components/inbox/ChatMediaBubble";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +36,7 @@ const InboxPage = () => {
   const [newMsg, setNewMsg] = useState("");
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
+  const [pendingFile, setPendingFile] = useState<{ url: string; mime: string; filename: string } | null>(null);
   const { toast } = useToast();
 
   // New conversation dialog
@@ -147,16 +150,30 @@ const InboxPage = () => {
   };
 
   const handleSend = async () => {
-    if (!selectedConv || !newMsg.trim() || !tenantId) return;
+    if (!selectedConv || (!newMsg.trim() && !pendingFile) || !tenantId) return;
     setSending(true);
-    const { error } = await supabase.functions.invoke("send_message", {
-      body: { tenant_id: tenantId, conversation_id: selectedConv, text: newMsg },
-    });
+
+    const payload: Record<string, unknown> = {
+      tenant_id: tenantId,
+      conversation_id: selectedConv,
+    };
+
+    if (pendingFile) {
+      payload.media_url = pendingFile.url;
+      payload.media_mime = pendingFile.mime;
+      payload.media_filename = pendingFile.filename;
+      if (newMsg.trim()) payload.caption = newMsg;
+    } else {
+      payload.text = newMsg;
+    }
+
+    const { error } = await supabase.functions.invoke("send_message", { body: payload });
     setSending(false);
     if (error) {
       toast({ title: "خطأ في الإرسال", description: error.message, variant: "destructive" });
     } else {
       setNewMsg("");
+      setPendingFile(null);
     }
   };
 
@@ -257,27 +274,56 @@ const InboxPage = () => {
                 ) : messages.length === 0 ? (
                   <div className="text-center text-sm text-muted-foreground py-8">لا توجد رسائل بعد</div>
                 ) : (
-                  messages.map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.direction === "outbound" ? "justify-start" : "justify-end"}`}>
-                      <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
-                        msg.direction === "outbound"
-                          ? "bg-card border border-border rounded-br-sm"
-                          : "bg-primary text-primary-foreground rounded-bl-sm"
-                      }`}>
-                        <p className="text-sm">{msg.text || "(وسائط)"}</p>
-                        <p className={`text-[10px] mt-1 ${msg.direction === "outbound" ? "text-muted-foreground" : "text-primary-foreground/70"}`}>
-                          {new Date(msg.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
-                        </p>
+                  messages.map((msg) => {
+                    const mediaMeta = (msg.meta as any)?.media;
+                    const isOutbound = msg.direction === "outbound";
+                    return (
+                      <div key={msg.id} className={`flex ${isOutbound ? "justify-start" : "justify-end"}`}>
+                        <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
+                          isOutbound
+                            ? "bg-card border border-border rounded-br-sm"
+                            : "bg-primary text-primary-foreground rounded-bl-sm"
+                        }`}>
+                          {mediaMeta?.url && (
+                            <div className="mb-1.5">
+                              <ChatMediaBubble media={mediaMeta} isOutbound={isOutbound} />
+                            </div>
+                          )}
+                          {msg.text && !(mediaMeta?.url && msg.text === `[${mediaMeta.type}]`) && (
+                            <p className="text-sm">{msg.text}</p>
+                          )}
+                          <p className={`text-[10px] mt-1 ${isOutbound ? "text-muted-foreground" : "text-primary-foreground/70"}`}>
+                            {new Date(msg.created_at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 
               <div className="p-4 border-t border-border bg-card">
+                {pendingFile && (
+                  <div className="mb-2">
+                    <FileAttachmentButton
+                      tenantId={tenantId!}
+                      onFileReady={setPendingFile}
+                      onClear={() => setPendingFile(null)}
+                      pendingFile={pendingFile}
+                    />
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
+                  {!pendingFile && (
+                    <FileAttachmentButton
+                      tenantId={tenantId!}
+                      onFileReady={setPendingFile}
+                      onClear={() => setPendingFile(null)}
+                      pendingFile={null}
+                    />
+                  )}
                   <Input
-                    placeholder="اكتب رسالة..."
+                    placeholder={pendingFile ? "أضف تعليقاً (اختياري)..." : "اكتب رسالة..."}
                     className="flex-1"
                     value={newMsg}
                     onChange={(e) => setNewMsg(e.target.value)}
@@ -285,7 +331,7 @@ const InboxPage = () => {
                   />
                   <button
                     onClick={handleSend}
-                    disabled={sending || !newMsg.trim()}
+                    disabled={sending || (!newMsg.trim() && !pendingFile)}
                     className="bg-primary text-primary-foreground p-2.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                   >
                     {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
