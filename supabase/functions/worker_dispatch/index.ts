@@ -17,12 +17,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  // Accept requests with any valid authorization (service role, anon key, or internal call)
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return json({ error: "Unauthorized" }, 401);
-  }
-
+  // Internal function - auth handled by Supabase config (verify_jwt = false)
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
