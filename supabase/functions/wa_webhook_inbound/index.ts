@@ -51,22 +51,32 @@ async function pickWaNumberForSender(
 ) {
   if (waNumbers.length === 1) return waNumbers[0];
 
-  const candidateWaIds = waNumbers.map((n) => n.id);
-  const normalizedPhone = `+${senderPhone}`;
+  const phoneCandidates = [senderPhone, `+${senderPhone}`];
 
-  const { data: existingConversation } = await supabase
-    .from("conversations")
-    .select("wa_number_id, last_message_at, created_at, contacts!inner(phone_e164)")
-    .in("wa_number_id", candidateWaIds)
-    .eq("contacts.phone_e164", normalizedPhone)
-    .order("last_message_at", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  for (const candidate of waNumbers) {
+    const { data: contact } = await supabase
+      .from("contacts")
+      .select("id")
+      .eq("tenant_id", candidate.tenant_id)
+      .in("phone_e164", phoneCandidates)
+      .limit(1)
+      .maybeSingle();
 
-  if (existingConversation?.wa_number_id) {
-    const byConversation = waNumbers.find((w) => w.id === existingConversation.wa_number_id);
-    if (byConversation) return byConversation;
+    if (!contact) continue;
+
+    const { data: existingConversation } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("tenant_id", candidate.tenant_id)
+      .eq("wa_number_id", candidate.id)
+      .eq("contact_id", contact.id)
+      .eq("status", "open")
+      .limit(1)
+      .maybeSingle();
+
+    if (existingConversation) {
+      return candidate;
+    }
   }
 
   return waNumbers[0];
