@@ -10,6 +10,7 @@ import { useTenant } from "@/hooks/use-tenant";
 import { useToast } from "@/hooks/use-toast";
 import { FileAttachmentButton } from "@/components/inbox/FileAttachmentButton";
 import { ChatMediaBubble } from "@/components/inbox/ChatMediaBubble";
+import { MessageStatus } from "@/components/inbox/MessageStatus";
 import {
   Dialog,
   DialogContent,
