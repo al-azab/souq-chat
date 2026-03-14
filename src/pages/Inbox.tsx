@@ -92,7 +92,7 @@ const InboxPage = () => {
       });
   }, [selectedConv]);
 
-  // Realtime subscription
+  // Realtime subscription (INSERT + UPDATE for delivery status)
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
@@ -102,6 +102,11 @@ const InboxPage = () => {
           setMessages((prev) => [...prev, payload.new]);
         }
         fetchConversations();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `tenant_id=eq.${tenantId}` }, (payload) => {
+        if (payload.new.conversation_id === selectedConv) {
+          setMessages((prev) => prev.map((m) => m.id === payload.new.id ? payload.new : m));
+        }
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
