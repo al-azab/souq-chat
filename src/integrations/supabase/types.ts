@@ -1226,6 +1226,7 @@ export type Database = {
         Returns: boolean
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      get_user_role: { Args: { p_user_id: string }; Returns: string }
       has_tenant_role: {
         Args: {
           _min_role: Database["public"]["Enums"]["member_role"]
