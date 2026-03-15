@@ -58,6 +58,8 @@ export const FileAttachmentButton = ({ tenantId, onFileReady, onClear, pendingFi
         url: signed.signedUrl,
         mime: file.type,
         filename: file.name,
+        storageKey: path,
+        storageBucket: "wa-media",
       });
     } catch (err: any) {
       console.error("Upload error:", err);
