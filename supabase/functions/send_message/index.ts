@@ -20,6 +20,21 @@ function mimeToWaType(mime: string): string {
   return "document";
 }
 
+function extractStorageRefFromSignedUrl(url: string | null | undefined) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const match = parsed.pathname.match(/\/storage\/v1\/object\/sign\/([^/]+)\/(.+)$/);
+    if (!match) return null;
+    return {
+      bucket: decodeURIComponent(match[1]),
+      storage_key: decodeURIComponent(match[2]),
+    };
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
