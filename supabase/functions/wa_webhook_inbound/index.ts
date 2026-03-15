@@ -22,9 +22,18 @@ function toIsoFromWaTimestamp(ts?: string): string {
   return new Date(asNumber * 1000).toISOString();
 }
 
-async function verifySignature(body: string, signature: string | null): Promise<boolean> {
+function parseSignatureHeader(rawHeader: string | null): string | null {
+  if (!rawHeader) return null;
+  const parts = rawHeader.split(",").map((v) => v.trim());
+  const signedPart = parts.find((part) => part.toLowerCase().startsWith("sha256="));
+  if (!signedPart) return null;
+  return signedPart.slice("sha256=".length).trim().toLowerCase();
+}
+
+async function verifySignature(body: string, rawSignatureHeader: string | null): Promise<boolean> {
   const appSecret = Deno.env.get("WA_APP_SECRET");
-  if (!appSecret || !signature) return true; // skip if no secret configured
+  const signature = parseSignatureHeader(rawSignatureHeader);
+  if (!appSecret || !signature) return true; // skip if no secret or no signature configured
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -35,13 +44,19 @@ async function verifySignature(body: string, signature: string | null): Promise<
   );
 
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
-  const expected =
-    "sha256=" +
-    Array.from(new Uint8Array(sig))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+  const expectedHex = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .toLowerCase();
 
-  return signature === expected;
+  if (expectedHex.length !== signature.length) return false;
+
+  let diff = 0;
+  for (let i = 0; i < expectedHex.length; i++) {
+    diff |= expectedHex.charCodeAt(i) ^ signature.charCodeAt(i);
+  }
+
+  return diff === 0;
 }
 
 async function pickWaNumberForSender(

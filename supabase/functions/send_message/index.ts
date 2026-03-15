@@ -53,7 +53,18 @@ Deno.serve(async (req) => {
     if (authErr || !user) return json({ error: "Unauthorized" }, 401);
 
     const body = await req.json();
-    const { tenant_id, conversation_id, text, template, media_url, media_mime, media_filename, caption } = body;
+    const {
+      tenant_id,
+      conversation_id,
+      text,
+      template,
+      media_url,
+      media_mime,
+      media_filename,
+      media_storage_key,
+      media_storage_bucket,
+      caption,
+    } = body;
 
     if (!tenant_id || !conversation_id) {
       return json({ error: "tenant_id and conversation_id are required" }, 400);
