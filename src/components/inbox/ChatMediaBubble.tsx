@@ -36,7 +36,7 @@ export const ChatMediaBubble = ({ media, isOutbound }: ChatMediaBubbleProps) => 
     // Media not yet processed or unavailable
     return (
       <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-        isOutbound ? "bg-muted/50" : "bg-primary-foreground/10"
+        isOutbound ? "bg-primary-foreground/15" : "bg-muted/60"
       }`}>
         <ImageIcon className="w-5 h-5 text-muted-foreground" />
         <span className="text-xs text-muted-foreground">
@@ -82,8 +82,8 @@ export const ChatMediaBubble = ({ media, isOutbound }: ChatMediaBubbleProps) => 
       rel="noopener noreferrer"
       className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
         isOutbound
-          ? "bg-muted/50 hover:bg-muted"
-          : "bg-primary-foreground/10 hover:bg-primary-foreground/20"
+          ? "bg-primary-foreground/15 hover:bg-primary-foreground/25"
+          : "bg-muted/60 hover:bg-muted"
       }`}
     >
       <FileText className="w-5 h-5 shrink-0" />

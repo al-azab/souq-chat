@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">wabass</string>
+    <string name="title_activity_main">wabass</string>
+    <string name="package_name">com.alazab.wabass</string>
+    <string name="custom_url_scheme">com.alazab.wabass</string>
+</resources>

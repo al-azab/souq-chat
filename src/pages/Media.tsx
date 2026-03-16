@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/use-tenant";
 import { toast } from "sonner";
+import type { MediaKind } from "@/lib/types";
 
 const PAGE_SIZE = 60;
 
@@ -55,7 +56,7 @@ const MediaPage = () => {
   const { tenantId, loading: tenantLoading } = useTenant();
   const [mediaFiles, setMediaFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [kindFilter, setKindFilter] = useState("all");
+  const [kindFilter, setKindFilter] = useState<"all" | MediaKind>("all");
   const [cloudConfig, setCloudConfig] = useState<CloudinaryConfig | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<any | null>(null);
   const [showUpload, setShowUpload] = useState(false);
@@ -87,7 +88,7 @@ const MediaPage = () => {
       .order("received_at", { ascending: false })
       .range(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE - 1);
 
-    if (kindFilter !== "all") query = query.eq("kind", kindFilter as any);
+    if (kindFilter !== "all") query = query.eq("kind", kindFilter);
 
     const { data } = await query;
     const items = data || [];
@@ -275,7 +276,7 @@ const MediaPage = () => {
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-3">
-          <Select value={kindFilter} onValueChange={(v) => { setKindFilter(v); setPage(0); }}>
+          <Select value={kindFilter} onValueChange={(v) => { setKindFilter(v as "all" | MediaKind); setPage(0); }}>
             <SelectTrigger className="w-36"><SelectValue placeholder="النوع" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">كل الأنواع</SelectItem>

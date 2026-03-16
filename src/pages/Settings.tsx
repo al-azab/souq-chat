@@ -219,13 +219,23 @@ const SettingsPage = () => {
               <Input className="mt-1.5" defaultValue="v24.0" dir="ltr" readOnly />
             </div>
             <div>
-              <Label className="text-sm font-medium">Business ID</Label>
-              <Input className="mt-1.5" defaultValue="314437023701205" dir="ltr" readOnly />
+              <Label className="text-sm font-medium">Supabase Project URL</Label>
+              <Input
+                className="mt-1.5"
+                value={import.meta.env.VITE_SUPABASE_URL || "—"}
+                dir="ltr"
+                readOnly
+              />
             </div>
             <div>
               <Label className="text-sm font-medium">عدد الحسابات المربوطة</Label>
               <Input className="mt-1.5" value={`${waAccounts.length} حساب`} readOnly />
             </div>
+            <p className="text-xs text-muted-foreground border border-border rounded-lg p-3 bg-muted/30">
+              لإعداد WA_ACCESS_TOKEN و WA_BUSINESS_ID وغيرها من الأسرار، راجع{" "}
+              <code className="bg-muted px-1 rounded text-xs">supabase/.env.example</code>{" "}
+              وأضفها عبر Supabase Dashboard → Project Settings → Edge Functions.
+            </p>
           </div>
         </TabsContent>
       </Tabs>

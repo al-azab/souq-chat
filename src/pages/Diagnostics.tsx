@@ -385,7 +385,7 @@ const DiagnosticsPage = () => {
             <h3 className="font-semibold text-sm">معلومات البيئة</h3>
           </div>
           <div className="px-5 py-4 space-y-3">
-            <InfoRow label="Supabase Project" value="uwkdtbodoglbptiediea" mono />
+            <InfoRow label="Supabase Project" value={import.meta.env.VITE_SUPABASE_URL?.match(/\/\/([^.]+)\./)?.[1] ?? "—"} mono />
             <InfoRow label="WA API Version" value={`v24.0 (من السيكرتس)`} />
             <InfoRow label="عدد الأرقام المسجّلة" value={`${numberTests.length} رقم`} />
             <InfoRow label="حالة النظام العامة" value={

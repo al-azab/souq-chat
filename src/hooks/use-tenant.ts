@@ -11,10 +11,10 @@ interface TenantInfo {
 
 export function useTenant(): TenantInfo {
   const { user } = useAuth();
-  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [tenantId, setTenantId]     = useState<string | null>(null);
   const [tenantName, setTenantName] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [role, setRole]             = useState<string | null>(null);
+  const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
     if (!user) {
@@ -26,18 +26,20 @@ export function useTenant(): TenantInfo {
     }
 
     const fetchTenant = async () => {
-      const { data: membership } = await supabase
+      // Use a typed select that returns tenants as a nested object
+      const { data } = await supabase
         .from("tenant_members")
         .select("tenant_id, role, tenants(name)")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
 
-      if (membership) {
-        setTenantId(membership.tenant_id);
-        setRole(membership.role);
-        // @ts-ignore - nested join
-        setTenantName(membership.tenants?.name || null);
+      if (data) {
+        setTenantId(data.tenant_id);
+        setRole(data.role);
+        // tenants is a one-to-one FK so Supabase returns an object, not an array
+        const tenant = data.tenants as { name: string } | null;
+        setTenantName(tenant?.name ?? null);
       }
       setLoading(false);
     };

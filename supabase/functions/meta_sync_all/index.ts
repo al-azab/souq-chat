@@ -51,9 +51,12 @@ Deno.serve(async (req) => {
       return json({ error: "Forbidden" }, 403);
     }
 
-    const waAccessToken = Deno.env.get("WA_ACCESS_TOKEN")!;
+    const waAccessToken = Deno.env.get("WA_ACCESS_TOKEN");
     const apiVersion = Deno.env.get("WA_API_VERSION") || "v24.0";
-    const businessId = Deno.env.get("WA_BUSINESS_ID") || "314437023701205";
+    const businessId = Deno.env.get("WA_BUSINESS_ID");
+
+    if (!waAccessToken) return json({ error: "WA_ACCESS_TOKEN secret not configured" }, 500);
+    if (!businessId)    return json({ error: "WA_BUSINESS_ID secret not configured" }, 500);
     const API = `https://graph.facebook.com/${apiVersion}`;
 
     const metaFetch = async (url: string) => {

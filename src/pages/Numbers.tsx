@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
-import { Phone, Loader2, Plus, AlertCircle, RefreshCw } from "lucide-react";
+import { Phone, Loader2, Plus, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,29 +15,31 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/use-tenant";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "react-router-dom";
+import type { WaNumber, WaAccount, WaNumberType } from "@/lib/types";
+
+type NumberWithAccount = WaNumber & { wa_accounts: Pick<WaAccount, "label" | "waba_id"> | null };
 
 const statusMap: Record<string, { status: "success" | "danger" | "warning"; label: string }> = {
-  active: { status: "success", label: "متصل" },
-  connected: { status: "success", label: "متصل" },
-  disconnected: { status: "danger", label: "غير متصل" },
-  pending: { status: "warning", label: "قيد التفعيل" },
+  active:       { status: "success", label: "متصل" },
+  connected:    { status: "success", label: "متصل" },
+  disconnected: { status: "danger",  label: "غير متصل" },
+  pending:      { status: "warning", label: "قيد التفعيل" },
 };
 
 const NumbersPage = () => {
   const { tenantId, loading: tenantLoading } = useTenant();
-  const [numbers, setNumbers] = useState<any[]>([]);
-  const [waAccounts, setWaAccounts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [numbers, setNumbers]       = useState<NumberWithAccount[]>([]);
+  const [waAccounts, setWaAccounts] = useState<Pick<WaAccount, "id" | "label" | "waba_id">[]>([]);
+  const [loading, setLoading]       = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [adding, setAdding]         = useState(false);
+  const [syncing, setSyncing]       = useState(false);
   const { toast } = useToast();
 
   // Form fields
-  const [phoneE164, setPhoneE164] = useState("");
+  const [phoneE164, setPhoneE164]         = useState("");
   const [phoneNumberId, setPhoneNumberId] = useState("");
-  const [numberType, setNumberType] = useState<string>("connected");
+  const [numberType, setNumberType]       = useState<WaNumberType>("connected");
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
 
   const fetchData = async () => {
@@ -49,8 +51,8 @@ const NumbersPage = () => {
       supabase.from("wa_accounts").select("id, label, waba_id").eq("tenant_id", tenantId),
     ]);
 
-    setNumbers(numbersRes.data || []);
-    setWaAccounts(accountsRes.data || []);
+    setNumbers((numbersRes.data ?? []) as NumberWithAccount[]);
+    setWaAccounts(accountsRes.data ?? []);
     if (accountsRes.data?.length && !selectedAccountId) {
       setSelectedAccountId(accountsRes.data[0].id);
     }
@@ -67,7 +69,7 @@ const NumbersPage = () => {
       wa_account_id: selectedAccountId,
       phone_e164: phoneE164.trim(),
       phone_number_id: phoneNumberId.trim(),
-      type: numberType as any,
+      type: numberType,
       status: "active",
     });
     setAdding(false);
@@ -125,7 +127,7 @@ const NumbersPage = () => {
     );
   }
 
-  const byType = (type: string) => numbers.filter((n) => n.type === type);
+  const byType = (type: WaNumberType) => numbers.filter((n) => n.type === type);
 
   const renderTable = (items: any[]) => {
     if (items.length === 0) {
@@ -150,8 +152,8 @@ const NumbersPage = () => {
           </thead>
           <tbody>
             {items.map((num) => {
-              const st = statusMap[num.status] || { status: "neutral" as const, label: num.status };
-              const accLabel = (num.wa_accounts as any)?.label || "—";
+              const st = statusMap[num.status] ?? { status: "neutral" as const, label: num.status };
+              const accLabel = num.wa_accounts?.label ?? "—";
               return (
                 <tr key={num.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
                   <td className="p-4 text-sm font-medium" dir="ltr">{num.phone_e164}</td>

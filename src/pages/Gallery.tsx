@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/use-tenant";
 import { toast } from "sonner";
 import { FolderSidebar, type Folder } from "@/components/gallery/FolderSidebar";
+import type { MediaKind } from "@/lib/types";
 
 /* ───────── constants ───────── */
 const PAGE_SIZE = 48;
@@ -62,7 +63,7 @@ const GalleryPage = () => {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [kindFilter, setKindFilter] = useState("all");
+  const [kindFilter, setKindFilter] = useState<"all" | MediaKind>("all");
   const [sortBy, setSortBy] = useState("newest");
   const [gridSize, setGridSize] = useState<"sm" | "md" | "lg">("md");
   const [page, setPage] = useState(0);
@@ -133,7 +134,7 @@ const GalleryPage = () => {
     if (activeFolder !== null) {
       query = query.eq("folder_id", activeFolder);
     }
-    if (kindFilter !== "all") query = query.eq("kind", kindFilter as any);
+    if (kindFilter !== "all") query = query.eq("kind", kindFilter);
     if (search) {
       query = query.or(`storage_key.ilike.%${search}%,mime.ilike.%${search}%`);
     }

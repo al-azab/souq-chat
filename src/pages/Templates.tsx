@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { SendTemplateModal } from "@/components/SendTemplateModal";
 import {
-  Search, RefreshCw, FileText, Loader2, Plus, Send, MoreHorizontal, Copy, Trash2,
+  Search, RefreshCw, FileText, Loader2, Send, MoreHorizontal, Copy, Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/use-tenant";
 import { useToast } from "@/hooks/use-toast";
+import type { Template, WaAccount, TmplStatus, TmplCategory } from "@/lib/types";
 
 /* ───────── helpers ───────── */
 const statusStyle: Record<string, string> = {
@@ -49,38 +50,41 @@ function paramsCount(t: any): number {
 /* ───────── component ───────── */
 const TemplatesPage = () => {
   const { tenantId, loading: tenantLoading } = useTenant();
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [waAccounts, setWaAccounts] = useState<any[]>([]);
-  const [waNumbers, setWaNumbers] = useState<any[]>([]);
-  const [accountFilter, setAccountFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [syncing, setSyncing] = useState(false);
-  const [sendModal, setSendModal] = useState<{ open: boolean; template: any }>({ open: false, template: null });
+  type TemplateWithAccount = Template & { wa_accounts: Pick<WaAccount, "label"> | null };
+  const [templates, setTemplates]   = useState<TemplateWithAccount[]>([]);
+  const [waAccounts, setWaAccounts] = useState<Pick<WaAccount, "id" | "label" | "waba_id">[]>([]);
+  const [accountFilter, setAccountFilter]   = useState("all");
+  const [loading, setLoading]               = useState(true);
+  const [search, setSearch]                 = useState("");
+  const [statusFilter, setStatusFilter]     = useState<"all" | TmplStatus>("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | TmplCategory>("all");
+  const [syncing, setSyncing]               = useState(false);
+  const [sendModal, setSendModal]           = useState<{ open: boolean; template: TemplateWithAccount | null }>({ open: false, template: null });
   const { toast } = useToast();
 
   const fetchAll = async () => {
     if (!tenantId) return;
     setLoading(true);
 
-    const [{ data: accounts }, { data: nums }, templateRes] = await Promise.all([
+    const [{ data: accounts }, templateRes] = await Promise.all([
       supabase.from("wa_accounts").select("id,label,waba_id").eq("tenant_id", tenantId),
-      supabase.from("wa_numbers").select("id,phone_e164").eq("tenant_id", tenantId),
       (async () => {
-        let q = supabase.from("templates").select("*, wa_accounts(label)").eq("tenant_id", tenantId).order("status", { ascending: true }).order("name", { ascending: true });
-        if (search) q = q.ilike("name", `%${search}%`);
-        if (statusFilter !== "all") q = q.eq("status", statusFilter as any);
-        if (categoryFilter !== "all") q = q.eq("category", categoryFilter as any);
-        if (accountFilter !== "all") q = q.eq("wa_account_id", accountFilter);
+        let q = supabase
+          .from("templates")
+          .select("*, wa_accounts(label)")
+          .eq("tenant_id", tenantId)
+          .order("status", { ascending: true })
+          .order("name",   { ascending: true });
+        if (search)                    q = q.ilike("name", `%${search}%`);
+        if (statusFilter   !== "all")  q = q.eq("status",   statusFilter);
+        if (categoryFilter !== "all")  q = q.eq("category", categoryFilter);
+        if (accountFilter  !== "all")  q = q.eq("wa_account_id", accountFilter);
         return q.limit(500);
       })(),
     ]);
 
-    setWaAccounts(accounts || []);
-    setWaNumbers(nums || []);
-    setTemplates(templateRes.data || []);
+    setWaAccounts(accounts ?? []);
+    setTemplates((templateRes.data ?? []) as TemplateWithAccount[]);
     setLoading(false);
   };
 
@@ -152,7 +156,7 @@ const TemplatesPage = () => {
             </SelectContent>
           </Select>
         )}
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | TmplStatus)}>
           <SelectTrigger className="w-40 bg-card"><SelectValue placeholder="كل الحالات" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">كل الحالات</SelectItem>
@@ -162,7 +166,7 @@ const TemplatesPage = () => {
             <SelectItem value="PAUSED">متوقف</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as "all" | TmplCategory)}>
           <SelectTrigger className="w-40 bg-card"><SelectValue placeholder="كل الفئات" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">كل الفئات</SelectItem>
@@ -196,7 +200,7 @@ const TemplatesPage = () => {
             <tbody>
               {templates.map((t) => {
                 const params = paramsCount(t);
-                const accLabel = (t.wa_accounts as any)?.label || "—";
+                const accLabel = t.wa_accounts?.label ?? "—";
                 return (
                   <tr key={t.id} className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors group">
                     <td className="px-5 py-3">

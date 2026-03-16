@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Search, Plus, Loader2 } from "lucide-react";
@@ -17,6 +17,15 @@ const ContactsPage = () => {
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search — لا نستعلم DB على كل ضغطة
+  useEffect(() => {
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newPhone, setNewPhone] = useState("");
   const [newName, setNewName] = useState("");
@@ -27,7 +36,7 @@ const ContactsPage = () => {
     if (!tenantId) return;
     let query = supabase.from("contacts").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false });
     if (search) {
-      query = query.or(`phone_e164.ilike.%${search}%,display_name.ilike.%${search}%`);
+      query = query.or(`phone_e164.ilike.%${debouncedSearch}%,display_name.ilike.%${debouncedSearch}%`);
     }
     const { data } = await query.limit(100);
     setContacts(data || []);
@@ -36,7 +45,7 @@ const ContactsPage = () => {
 
   useEffect(() => {
     fetchContacts();
-  }, [tenantId, search]);
+  }, [tenantId, debouncedSearch]);
 
   const handleAdd = async () => {
     if (!tenantId || !newPhone) return;
